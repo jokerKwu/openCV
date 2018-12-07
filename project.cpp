@@ -15,8 +15,9 @@ int main() {
 		int WhiteCenter = ColorSlicing(filter_img,i);
 		Mat faceDetected=imgDisplay(pointDist, keyPointCnt, th, filter_img, i, height, width, WhiteCenter);
 		Mat eyeDectected=eyeDect(faceDetected);
-		imshow(i+ " face", faceDetected);
-		imshow(i+ " eye", eyeDectected);
+		string faceName, eyeName;
+		imshow(to_string(i)+"face", faceDetected);
+		imshow(to_string(i)+"eye", eyeDectected);
 	}
 	waitKey(0);
 }
