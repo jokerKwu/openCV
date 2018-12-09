@@ -12,7 +12,7 @@ using namespace cv;
 using namespace std;
 
 //////////////////////////////////////////////
-			//눈 추출 부분
+//눈 추출 부분
 //////////////////////////////////////////////
 
 #define SIZE 256
@@ -25,7 +25,7 @@ Mat eyeDect(Mat faceDetected);
 
 
 ////////////////////////////////////////////// 
-		//얼굴 추출 부분
+//얼굴 추출 부분
 ////////////////////////////////////////////// 
 static int height = 512; //resize 영상 이미지 크기 설정
 static int width = 512; //resize 영상 이미지 크기 설정
@@ -39,9 +39,15 @@ Mat imgDisplay(int pointDist, int keyPointCnt, int th, Mat ori_img, int count, i
 void pointPrint(int x, int y, int color[3], Mat img);
 double** MemAlloc2D(int nHeight, int nWidth, unsigned char nInitVal);
 Mat faceDetected(Mat img, int startX, int startY, int destX, int destY);
-int ColorSlicing(Mat inputImg,int name);
+int ColorSlicing(Mat inputImg, int name);
 int dx[3] = { -1,0,1 };
 int dy[3] = { -1,0,1 };
 Mat hlsImg, skinImg;
 IplImage* convertImageHSVtoRGB(const IplImage *imageHSV);
 IplImage* convertImageRGBtoHSV(const IplImage *imageRGB);
+void mophologyErosion(Mat result, Mat copied);
+void mophologyDilation(Mat result, Mat copied);
+int** makeMeanOfCell(Mat result);
+void copyMatToArr(Mat from, unsigned char** to, int height, int width);
+Mat Erosion(Mat img);
+Mat Dilation(Mat img);
