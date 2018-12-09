@@ -1,9 +1,9 @@
 ﻿#include"project.h"
 
-int main() { 
+int main() {
 	int pointDist = 5, keyPointCnt = 20;   // pointDist 마스크 길이, keyPointCnt 밀도 개수
 	double th = 1000.0;//임계값
-	string imgPathSetting = "C:\\Users\\joon\\Desktop\\1\\";//이미지 경로 설정 이미지가 들어있는 폴더 경로로 변경
+	string imgPathSetting = "C:\\Users\\romak\\Desktop\\1\\";//이미지 경로 설정 이미지가 들어있는 폴더 경로로 변경
 	int startNum, endNum;
 	cout << "####현재 이미지 경로 설정 상태#####" << '\n';
 	cout << imgPathSetting + "?.png\n\n\n";
@@ -12,46 +12,49 @@ int main() {
 	for (int i = startNum; i <= endNum; i++) {
 		string imgPath = imgPathSetting + to_string(i) + ".png";
 		Mat filter_img = imread(imgPath);
-		int WhiteCenter = ColorSlicing(filter_img,i);
-		Mat faceDetected=imgDisplay(pointDist, keyPointCnt, th, filter_img, i, height, width, WhiteCenter);
-		Mat eyeDectected=eyeDect(faceDetected);
+		int WhiteCenter = ColorSlicing(filter_img, i);
+		Mat faceDetected = imgDisplay(pointDist, keyPointCnt, th, filter_img, i, height, width, WhiteCenter);
+		Mat eyeDectected = eyeDect(faceDetected);
 		string faceName, eyeName;
-		imshow(to_string(i)+"face", faceDetected);
-		imshow(to_string(i)+"eye", eyeDectected);
+		imshow(to_string(i) + "face", faceDetected);
+		imshow(to_string(i) + "eye", eyeDectected);
 	}
 	waitKey(0);
 }
-Mat eyeDect(Mat faceDetected) {
-	Mat img_resize(Size(faceDetected.cols, faceDetected.rows), CV_8UC1);
 
+
+int cellSize = 8;
+int pixelPerCell = SIZE / 8;
+int totalCell = cellSize * cellSize;
+const int filterSize = 3;
+//int mopholFileter[filterSize][filterSize] = { { 0,0,1,0,0 },{ 0,1,1,1,0},{ 1,1,1,1,1 },{ 0,1,1,1,0},{ 0,0,1,0,0 } };
+int mopholFileter[filterSize][filterSize] = { { 1,1,1 },{ 1,1,1 },{ 1,1,1 } };
+//int mopholFileter[filterSize][filterSize] = { {0,1,0 },{ 1,1,1 },{ 0,1,0 } };
+
+Mat eyeDect(Mat faceDetected) {
+	Mat img_resize, img_resize2, img_resize3;
 	Mat img_gray;
-	resize(faceDetected, img_resize, Size(256, 256), 0, 0, CV_INTER_CUBIC);
+	resize(faceDetected, img_resize2, Size(256, 256), 0, 0, CV_INTER_LINEAR);
+
+	cvtColor(faceDetected, img_gray, CV_BGR2GRAY);
+	resize(faceDetected, img_resize, Size(256, 256), 0, 0, CV_INTER_LINEAR);
 	Mat result = Mat(256, 256, CV_8UC1);
+
+
 	int hist[256] = { 0 };
 	calculateHisogram(hist, img_resize);
 
-	int globalT = basicGlobalThresholing(hist);
-
-	toBinaryImage(img_resize, result, globalT);
+	toBinaryImage(img_resize, result, basicGlobalThresholing(hist));
 
 	cutCircle(result, 110);
 
+	result = Dilation(result);
+	result = Erosion(result);
+
+
 	int numberOfBlack = 0;
-
-	int masksize = 20;
-	unsigned char** mask = allocMem(masksize, masksize);
-	int center = masksize / 2;
-	for (int h = 0; h < masksize; h++) {
-		for (int w = 0; w < masksize; w++) {
-			if ((h - center)*(h - center) + (w - center)*(w - center) < 6 * 6) {
-				mask[h][w] = 255;
-			}
-		}
-	}
-
-	int a = 0;
-
-	for (int h = 128; h >= 0; h--) {
+	pair<int, int> startPoint1 = make_pair(0, 0), startPoint2 = make_pair(0, 0);
+	for (int h = 128; h >= 20; h--) {
 		numberOfBlack = 0;
 		for (int i = h - 20; i < h; i++) {
 			for (int w = 0; w < SIZE; w++) {
@@ -60,65 +63,233 @@ Mat eyeDect(Mat faceDetected) {
 				}
 			}
 		}
+		int blackNUM = 0;
 		if (numberOfBlack > 400) {
-			for (int i = 0; i < SIZE; i++) {
-				result.at<uchar>(h, i) = 128;
-				result.at<uchar>(h - 20, i) = 128;
-				a = h;
-			}
-			//return result;
-			break;
-		}
-	}
-	int aa;
-	for (int w = 0; w < SIZE; w++)
-	{
-		aa = 0;
-		if (numberOfBlack > 400)
-		{
-			for (int h = a - 19; h < a - 1; h++)
-			{
-				if (result.at<uchar>(h, w) == 0)
-				{
-					for (int s = a - 20; s < a; s++)
-					{
-						result.at<uchar>(s, w) = 128;
-						result.at<uchar>(s, w + 60) = 128;
+			for (int i = 0; i < 128; i++) {
+				blackNUM = 0;
+				for (int j = h - 20; j < h; j++) {
+					if (result.at<uchar>(j, i) == 0) {
+						blackNUM++;
 					}
-					cout << h << " " << w << endl;
-					aa = 1;
+				}
+				if (blackNUM > 10) {
+					startPoint1 = make_pair(h - 20, i);
 					break;
 				}
 			}
-		}
-		if (aa == 1)
-			break;
-	}
-	for (int w = SIZE - 1; w > 0; w--)
-	{
-		aa = 0;
-		if (numberOfBlack > 400)
-		{
-			for (int h = a - 19; h < a - 1; h++)
-			{
-				if (result.at<uchar>(h, w) == 0)
-				{
-					for (int s = a - 20; s < a; s++)
-					{
-						result.at<uchar>(s, w) = 128;
-						result.at<uchar>(s, w - 60) = 128;
+
+			for (int i = 128; i < SIZE; i++) {
+				blackNUM = 0;
+				for (int j = h - 20; j < h; j++) {
+					if (result.at<uchar>(j, i) == 0) {
+						blackNUM++;
 					}
-					cout << h << " " << w << endl;
-					aa = 1;
+				}
+				if (blackNUM > 10) {
+					startPoint2 = make_pair(h - 20, i);
 					break;
 				}
 			}
-		}
-		if (aa == 1)
 			break;
+		}
 	}
-	return result;
+
+	int EyeSize = 50;
+	int layer = 0;
+	if (startPoint1 != make_pair(0, 0) && startPoint2 != make_pair(0, 0)) {
+		for (int h = startPoint1.first; h < startPoint1.first + 20; h++) {
+			for (int w = startPoint1.second; w < startPoint1.second + EyeSize; w++) {
+				img_resize2.at<uchar>(startPoint1.first, w) = layer;
+				img_resize2.at<uchar>(startPoint1.first + 20, w) = layer;
+				img_resize2.at<uchar>(h, startPoint1.second) = layer;
+				img_resize2.at<uchar>(h, startPoint1.second + EyeSize) = layer;
+			}
+		}
+		for (int h = startPoint2.first; h < startPoint2.first + 20; h++) {
+			for (int w = startPoint2.second; w < startPoint2.second + EyeSize; w++) {
+				img_resize2.at<uchar>(startPoint2.first, w) = layer;
+				img_resize2.at<uchar>(startPoint2.first + 20, w) = layer;
+				img_resize2.at<uchar>(h, startPoint2.second) = layer;
+				img_resize2.at<uchar>(h, startPoint2.second + EyeSize) = layer;
+			}
+		}
+	}
+
+	return img_resize2;
 }
+
+
+Mat Erosion(Mat img) {
+	Mat copied = Mat(img.rows, img.cols, CV_8UC1);
+	for (int h = 0; h < SIZE; h++) {
+		for (int w = 0; w < SIZE; w++) {
+			copied.at<uchar>(h, w) = img.at<uchar>(h, w);
+		}
+	}
+	mophologyErosion(img, copied);
+	return img;
+}
+Mat Dilation(Mat img) {
+	Mat copied = Mat(img.rows, img.cols, CV_8UC1);
+	for (int h = 0; h < SIZE; h++) {
+		for (int w = 0; w < SIZE; w++) {
+			copied.at<uchar>(h, w) = img.at<uchar>(h, w);
+		}
+	}
+	mophologyDilation(img, copied);
+	return img;
+}
+void mophologyErosion(Mat result, Mat copied) {
+
+
+	int center = filterSize / 2;
+	int temp = 0;
+	for (int h = center; h < SIZE - center; h++) {
+		for (int w = center; w < SIZE - center; w++) {
+			temp = 0;
+			for (int i = 0; i < filterSize; i++) {
+				for (int j = 0; j < filterSize; j++) {
+					if (copied.at<uchar>(h - center + i, w - center + j) * mopholFileter[i][j] != 0) {
+						temp++;
+					}
+				}
+			}
+			if (temp == 0) { //모두다 겹치지않으면 0으로
+				result.at<uchar>(h, w) = 0;
+			}
+		}
+	}
+}
+void mophologyDilation(Mat result, Mat copied) {
+	const int size = 3;
+	int center = size / 2;
+	int dilationFileter[size][size] = { { 1,1,1 },{ 1,1,1 },{ 1,1,1 } };
+
+	int temp = 0;
+	for (int h = center; h < SIZE - center; h++) {
+		for (int w = center; w < SIZE - center; w++) {
+			temp = 0;
+			for (int i = 0; i < size; i++) {
+				for (int j = 0; j < size; j++) {
+					if (copied.at<uchar>(h - center + i, w - center + j) * dilationFileter[i][j] == 0) {
+						temp++;
+					}
+				}
+			}
+			if (temp != 0) { //겹치는게하나라도있다면 0으로
+				result.at<uchar>(h, w) = 0;
+			}
+		}
+	}
+}
+
+int** makeMeanOfCell(Mat result) {
+	int mean = 0;
+	int **meanOfCell = new int*[cellSize];
+	for (int i = 0; i < cellSize; i++) {
+		meanOfCell[i] = new int[cellSize];
+		memset(meanOfCell[i], 0, sizeof(int) * cellSize);
+	}
+
+	for (int i = 0; i < cellSize; i++) {
+		for (int j = 0; j < cellSize; j++) {
+			mean = 0;
+			for (int h = 0; h < pixelPerCell; h++) {
+				for (int w = 0; w < pixelPerCell; w++) {
+					mean += result.at<uchar>(i*pixelPerCell + h, j*pixelPerCell + w);
+				}
+			}
+			mean /= pixelPerCell * pixelPerCell;
+			meanOfCell[i][j] = mean;
+
+		}
+	}
+
+	/*for (int i = 8; i < 15; i++) {
+	for (int j = 0; j < cellSize; j++) {
+	mean = 0;
+	for (int h = 0; h < pixelPerCell; h++) {
+	for (int w = 0; w < pixelPerCell; w++) {
+	mean += result.at<uchar>((i-8)*pixelPerCell + h + 16, j*pixelPerCell + w);
+	}
+	}
+	mean /= pixelPerCell * pixelPerCell;
+	meanOfCell[i][j] = mean;
+	}
+	}*/
+	return meanOfCell;
+}
+
+void calculateHisogram(int hist[256], Mat img) {
+	for (int h = 0; h < SIZE; h++) {
+		for (int w = 0; w < SIZE; w++) {
+			hist[img.at<uchar>(h, w)]++;
+		}
+	}
+}
+
+int  basicGlobalThresholing(int hist[256]) {
+	int globalT = 128;
+	int m1 = 0, m2 = 0;
+	int down1 = 0, down2 = 0;
+	for (int x = 0; x < 6; x++) {
+		for (int i = 0; i < SIZE; i++) {
+			if (i < globalT) {
+				m1 += i * hist[i];
+				down1 += hist[i];
+			}
+			else {
+				m2 += i * hist[i];
+				down2 += hist[i];
+			}
+		}
+		globalT = ((m1 / down1) + (m2 / down2)) / 2;
+	}
+	return globalT;
+}
+
+void toBinaryImage(Mat ori, Mat dst, int globalT) {
+	for (int h = 0; h < SIZE; h++) {
+		for (int w = 0; w < SIZE; w++) {
+			if (ori.at<uchar>(h, w) < globalT) {
+				dst.at<uchar>(h, w) = 0;
+			}
+			else {
+				dst.at<uchar>(h, w) = 255;
+			}
+		}
+	}
+}
+
+void cutCircle(Mat img, int D) {
+	int center = SIZE / 2;
+	for (int h = 0; h < SIZE; h++) {
+		for (int w = 0; w < SIZE; w++) {
+			if ((h - center)*(h - center) + (w - center)*(w - center) > D * D) {
+				img.at<uchar>(h, w) = 255;
+			}
+		}
+	}
+}
+
+void copyMatToArr(Mat from, unsigned char** to, int height, int width) {
+	for (int h = 0; h < height; h++) {
+		for (int w = 0; w < width; w++) {
+			to[h][w] = from.at<uchar>(h, w);
+		}
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
 
 
 int ColorSlicing(Mat inputImg, int name)
@@ -214,7 +385,7 @@ Mat imgDisplay(int pointDist, int keyPointCnt, int th, Mat ori_img, int count, i
 	Point pt2(finalPos.x + line.x, finalPos.y + line.x*1.3);
 
 	/*
-	   0,0 으로부터 가장 가까운 특징점에 중심값과 0,0으로부터 가장 짧은 거리에 있는 특징점 간에 중심값 구하기
+	0,0 으로부터 가장 가까운 특징점에 중심값과 0,0으로부터 가장 짧은 거리에 있는 특징점 간에 중심값 구하기
 	*/
 	double x = sqrt(featurePoints[0].x*featurePoints[0].x + featurePoints[0].y*featurePoints[0].y);
 	Point y = featurePoints[0];
@@ -242,8 +413,8 @@ Mat imgDisplay(int pointDist, int keyPointCnt, int th, Mat ori_img, int count, i
 	//double PlusColSize = width - 2 * finalPoint.x;
 	double PlusColSize = 2 * (WhiteCenter - finalPoint.x);
 	double PlusRowSize = PlusColSize * (7.0 / 5.0) * ((double)ori_img.cols / (double)ori_img.rows);
-	
-	
+
+
 
 	//특징점 초록색 점 찍기
 	for (int i = 0; i < cList.size(); i++) {
@@ -266,81 +437,27 @@ Mat imgDisplay(int pointDist, int keyPointCnt, int th, Mat ori_img, int count, i
 
 
 	rectangle(img, finalPoint, Point(finalPoint.x + PlusColSize, finalPoint.y + PlusRowSize), Scalar(255, 200, 100), 5);//사각형 그리기
-	Mat faceDomain= faceDetected(img, finalPoint.x, finalPoint.y, finalPoint.x + PlusColSize, finalPoint.y + PlusRowSize);
+	Mat faceDomain = faceDetected(img, finalPoint.x, finalPoint.y, finalPoint.x + PlusColSize, finalPoint.y + PlusRowSize);
 
 
 
 	std::string OutName = std::to_string(count);
-	
+
 	return faceDomain;
 }
-Mat faceDetected(Mat img,int startX,int startY,int destX,int destY) {
-	Mat faceDected(Size(destX-startX,destY-startY), CV_8UC1);
+Mat faceDetected(Mat img, int startX, int startY, int destX, int destY) {
+	Mat faceDected(Size(destX - startX, destY - startY), CV_8UC1);
 	Mat img_resize, graytmp;
 	//resize(ori_img, tmpImg, Size(512, 512), 0, 0, CV_INTER_CUBIC);
 	cvtColor(img, graytmp, CV_BGR2GRAY);
 	for (int i = startY; i < destY; i++) {
-		for (int j = startX; j <destX; j++) {
+		for (int j = startX; j < destX; j++) {
 			faceDected.at<unsigned char>(i - startY, j - startX) = graytmp.at<unsigned char>(i, j);
 		}
 	}
 	resize(faceDected, img_resize, Size(256, 256), 0, 0, CV_INTER_CUBIC);
 	return img_resize;
 }
-
-void calculateHisogram(int hist[256], Mat img) {
-	for (int h = 0; h < SIZE; h++) {
-		for (int w = 0; w < SIZE; w++) {
-			hist[img.at<uchar>(h, w)]++;
-		}
-	}
-}
-
-
-int  basicGlobalThresholing(int hist[256]) {
-	int globalT = 128;
-	int m1 = 0, m2 = 0;
-	int down1 = 0, down2 = 0;
-	for (int x = 0; x < 6; x++) {
-		for (int i = 0; i < SIZE; i++) {
-			if (i < globalT) {
-				m1 += i * hist[i];
-				down1 += hist[i];
-			}
-			else {
-				m2 += i * hist[i];
-				down2 += hist[i];
-			}
-		}
-		globalT = ((m1 / down1) + (m2 / down2)) / 2;
-	}
-	return globalT;
-}
-
-void toBinaryImage(Mat ori, Mat dst, int globalT) {
-	for (int h = 0; h < SIZE; h++) {
-		for (int w = 0; w < SIZE; w++) {
-			if (ori.at<uchar>(h, w) < globalT) {
-				dst.at<uchar>(h, w) = 0;
-			}
-			else {
-				dst.at<uchar>(h, w) = 255;
-			}
-		}
-	}
-}
-
-void cutCircle(Mat img, int D) {
-	int center = SIZE / 2;
-	for (int h = 0; h < SIZE; h++) {
-		for (int w = 0; w < SIZE; w++) {
-			if ((h - center)*(h - center) + (w - center)*(w - center) > D * D) {
-				img.at<uchar>(h, w) = 255;
-			}
-		}
-	}
-}
-
 
 unsigned char** allocMem(int height, int width) {
 	unsigned char** ret = new unsigned char*[height];
@@ -374,10 +491,10 @@ void harrisCorner(unsigned char** Img_Ori, vector<Point>& corners, double th, in
 	double k = 0.04; // 코너응답함수의 상수값 00.4~ 0.06이 적절
 
 	double Gaussian[5][5] = { 1, 4 , 6 , 4 , 1 ,
-			   4, 16, 24, 16, 4,
-			   6, 24, 36, 24, 6,
-			   4, 16, 24, 16, 4 ,
-			   1, 4 , 6 , 4 , 1 }; // W(람다x,람다y) => 가우시안분포값                  
+		4, 16, 24, 16, 4,
+		6, 24, 36, 24, 6,
+		4, 16, 24, 16, 4 ,
+		1, 4 , 6 , 4 , 1 }; // W(람다x,람다y) => 가우시안분포값                  
 	for (int h = 0; h < 5; h++)
 		for (int w = 0; w < 5; w++)
 		{
@@ -680,7 +797,7 @@ IplImage* convertImageRGBtoHSV(const IplImage *imageRGB)
 			int bG = *(uchar*)(pRGB + 1);   // Green component
 			int bR = *(uchar*)(pRGB + 2);   // Red component
 
-			// Convert from 8-bit integers to floats.
+											// Convert from 8-bit integers to floats.
 			fR = bR * BYTE_TO_FLOAT;
 			fG = bG * BYTE_TO_FLOAT;
 			fB = bB * BYTE_TO_FLOAT;
@@ -809,7 +926,7 @@ IplImage* convertImageHSVtoRGB(const IplImage *imageHSV)
 			int bS = *(uchar*)(pHSV + 1);   // S component
 			int bV = *(uchar*)(pHSV + 2);   // V component
 
-			// Convert from 8-bit integers to floats
+											// Convert from 8-bit integers to floats
 			fH = (float)bH * BYTE_TO_FLOAT;
 			fS = (float)bS * BYTE_TO_FLOAT;
 			fV = (float)bV * BYTE_TO_FLOAT;
