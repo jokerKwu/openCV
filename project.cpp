@@ -49,7 +49,7 @@ Mat eyeDect(Mat faceDetected) {
 		}
 	}
 
-
+	int a = 0;
 
 	for (int h = 128; h >= 0; h--) {
 		numberOfBlack = 0;
@@ -63,11 +63,59 @@ Mat eyeDect(Mat faceDetected) {
 		if (numberOfBlack > 400) {
 			for (int i = 0; i < SIZE; i++) {
 				result.at<uchar>(h, i) = 128;
-				result.at<uchar>(h + 20, i) = 128;
-
+				result.at<uchar>(h - 20, i) = 128;
+				a = h;
 			}
-			return result;
+			//return result;
+			break;
 		}
+	}
+	int aa;
+	for (int w = 0; w < SIZE; w++)
+	{
+		aa = 0;
+		if (numberOfBlack > 400)
+		{
+			for (int h = a - 19; h < a - 1; h++)
+			{
+				if (result.at<uchar>(h, w) == 0)
+				{
+					for (int s = a - 20; s < a; s++)
+					{
+						result.at<uchar>(s, w) = 128;
+						result.at<uchar>(s, w + 60) = 128;
+					}
+					cout << h << " " << w << endl;
+					aa = 1;
+					break;
+				}
+			}
+		}
+		if (aa == 1)
+			break;
+	}
+	for (int w = SIZE - 1; w > 0; w--)
+	{
+		aa = 0;
+		if (numberOfBlack > 400)
+		{
+			for (int h = a - 19; h < a - 1; h++)
+			{
+				if (result.at<uchar>(h, w) == 0)
+				{
+					for (int s = a - 20; s < a; s++)
+					{
+						result.at<uchar>(s, w) = 128;
+						result.at<uchar>(s, w - 60) = 128;
+					}
+					cout << h << " " << w << endl;
+					aa = 1;
+					break;
+				}
+			}
+		}
+		if (aa == 1)
+			break;
 	}
 	return result;
 }
