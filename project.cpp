@@ -3,7 +3,7 @@
 int main() {
 	int pointDist = 5, keyPointCnt = 20;   // pointDist 마스크 길이, keyPointCnt 밀도 개수
 	double th = 1000.0;//임계값
-	string imgPathSetting = "C:\\Users\\romak\\Desktop\\1\\";//이미지 경로 설정 이미지가 들어있는 폴더 경로로 변경
+	string imgPathSetting = "C:\\Users\\joon\\Desktop\\1\\";//이미지 경로 설정 이미지가 들어있는 폴더 경로로 변경
 	int startNum, endNum;
 	cout << "####현재 이미지 경로 설정 상태#####" << '\n';
 	cout << imgPathSetting + "?.png\n\n\n";
@@ -13,11 +13,42 @@ int main() {
 		string imgPath = imgPathSetting + to_string(i) + ".png";
 		Mat filter_img = imread(imgPath);
 		int WhiteCenter = ColorSlicing(filter_img, i);
-		Mat faceDetected = imgDisplay(pointDist, keyPointCnt, th, filter_img, i, height, width, WhiteCenter);
-		Mat eyeDectected = eyeDect(faceDetected);
+		int x1, y1, x2, y2;
+		double ratex = 0, ratey = 0;
+		Mat faceDetect;
+		Mat Ori = imgDisplay(pointDist, keyPointCnt, th, filter_img, i, height, width, WhiteCenter, x1, y1, x2, y2, faceDetect, ratex, ratey);
+		int xx1, yy1, xx2, yy2, xx3, yy3, xx4, yy4;
+		Mat eyeDectected = eyeDect(faceDetect, xx1, yy1, xx2, yy2, xx3, yy3, xx4, yy4);
+		double rateH = (double)filter_img.rows / 512.0;
+		double rateW = (double)filter_img.cols / 512.0;
+
+		xx1 = (int)(xx1 * ratex + x1);
+		xx2 = (int)(xx2 * ratex + x1);
+		xx3 = (int)(xx3 * ratex + x1);
+		xx4 = (int)(xx4 * ratex + x1);
+		yy1 = (int)(yy1 * ratey + y1);
+		yy2 = (int)(yy2 * ratey + y1);
+		yy3 = (int)(yy3 * ratey + y1);
+		yy4 = (int)(yy4 * ratey + y1);
+		xx1 *= rateW;
+		xx2 *= rateW;
+		xx3 *= rateW;
+		xx4 *= rateW;
+		yy1 *= rateH;
+		yy2 *= rateH;
+		yy3 *= rateH;
+		yy4 *= rateH;
+		x1 *= rateW;
+		x2 *= rateW;
+		y1 *= rateH;
+		y2 *= rateH;
+
 		string faceName, eyeName;
-		imshow(to_string(i) + "face", faceDetected);
-		imshow(to_string(i) + "eye", eyeDectected);
+		rectangle(filter_img, { x1, y1 }, { x2, y2 }, Scalar(255, 200, 100), 5);//사각형 그리기
+		rectangle(filter_img, { xx1, yy1 }, { xx2, yy2 }, Scalar(255, 0, 255), 2);//사각형 그리기
+		rectangle(filter_img, { xx3, yy3 }, { xx4, yy4 }, Scalar(255, 0, 255), 2);//사각형 그리기
+		imshow(to_string(i) + "detected", filter_img);
+
 	}
 	waitKey(0);
 }
@@ -27,16 +58,13 @@ int cellSize = 8;
 int pixelPerCell = SIZE / 8;
 int totalCell = cellSize * cellSize;
 const int filterSize = 3;
-//int mopholFileter[filterSize][filterSize] = { { 0,0,1,0,0 },{ 0,1,1,1,0},{ 1,1,1,1,1 },{ 0,1,1,1,0},{ 0,0,1,0,0 } };
 int mopholFileter[filterSize][filterSize] = { { 1,1,1 },{ 1,1,1 },{ 1,1,1 } };
-//int mopholFileter[filterSize][filterSize] = { {0,1,0 },{ 1,1,1 },{ 0,1,0 } };
 
-Mat eyeDect(Mat faceDetected) {
+Mat eyeDect(Mat faceDetected, int &xx1, int &yy1, int &xx2, int &yy2, int &xx3, int &yy3, int &xx4, int &yy4) {
 	Mat img_resize, img_resize2, img_resize3;
 	Mat img_gray;
 	resize(faceDetected, img_resize2, Size(256, 256), 0, 0, CV_INTER_LINEAR);
 
-	cvtColor(faceDetected, img_gray, CV_BGR2GRAY);
 	resize(faceDetected, img_resize, Size(256, 256), 0, 0, CV_INTER_LINEAR);
 	Mat result = Mat(256, 256, CV_8UC1);
 
@@ -114,6 +142,14 @@ Mat eyeDect(Mat faceDetected) {
 			}
 		}
 	}
+	yy1 = startPoint1.first;
+	yy2 = startPoint1.first + 20;
+	xx1 = startPoint1.second;
+	xx2 = startPoint1.second + 50;
+	yy3 = startPoint2.first;
+	yy4 = startPoint2.first + 20;
+	xx3 = startPoint2.second;
+	xx4 = startPoint2.second + 50;
 
 	return img_resize2;
 }
@@ -344,7 +380,7 @@ int ColorSlicing(Mat inputImg, int name)
 	return WhiteCenter;
 }
 
-Mat imgDisplay(int pointDist, int keyPointCnt, int th, Mat ori_img, int count, int height, int width, int WhiteCenter)
+Mat imgDisplay(int pointDist, int keyPointCnt, int th, Mat ori_img, int count, int height, int width, int WhiteCenter, int &x1, int &y1, int &x2, int &y2, Mat &faceDetect, double &ratex, double &ratey)
 {
 	vector<Point>cList;
 	bool **visited;
@@ -437,13 +473,19 @@ Mat imgDisplay(int pointDist, int keyPointCnt, int th, Mat ori_img, int count, i
 
 
 	rectangle(img, finalPoint, Point(finalPoint.x + PlusColSize, finalPoint.y + PlusRowSize), Scalar(255, 200, 100), 5);//사각형 그리기
-	Mat faceDomain = faceDetected(img, finalPoint.x, finalPoint.y, finalPoint.x + PlusColSize, finalPoint.y + PlusRowSize);
-
-
+	//Mat faceDomain = faceDetected(img, finalPoint.x, finalPoint.y, finalPoint.x + PlusColSize, finalPoint.y + PlusRowSize);
+	faceDetect = faceDetected(img, finalPoint.x, finalPoint.y, finalPoint.x + PlusColSize, finalPoint.y + PlusRowSize);
+	x1 = finalPoint.x;
+	y1 = finalPoint.y;
+	x2 = finalPoint.x + PlusColSize;
+	y2 = finalPoint.y + PlusRowSize;
+	ratex = (double)(PlusColSize / 256.0);
+	ratey = (double)(PlusRowSize / 256.0);
 
 	std::string OutName = std::to_string(count);
 
-	return faceDomain;
+	//return faceDomain;
+	return img;
 }
 Mat faceDetected(Mat img, int startX, int startY, int destX, int destY) {
 	Mat faceDected(Size(destX - startX, destY - startY), CV_8UC1);

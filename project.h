@@ -21,7 +21,7 @@ int  basicGlobalThresholing(int hist[256]);
 void toBinaryImage(Mat ori, Mat dst, int globalT);
 unsigned char** allocMem(int height, int width);
 void cutCircle(Mat img, int D);
-Mat eyeDect(Mat faceDetected);
+Mat eyeDect(Mat faceDetected, int &xx1, int &yy1, int &xx2, int &yy2, int &xx3, int &yy3, int &xx4, int &yy4);
 
 
 ////////////////////////////////////////////// 
@@ -35,7 +35,7 @@ vector<Point> centerValue(vector<vector<Point>>& c);                        // �
 Point faceCenter(vector<Point> a);                                       // 분류화된 특징점들 간에 중심값들간에 중심값 구하는 함수 (빨간색점)
 vector<vector<Point>> bfs(int maskSize, int clusterCnt, vector<Point> cList);      // 특징점 탐색을 통해서 분류화 구하는 함수
 Point rectLength(Point a, vector<Point> b);
-Mat imgDisplay(int pointDist, int keyPointCnt, int th, Mat ori_img, int count, int height, int width, int WhiteCenter);
+Mat imgDisplay(int pointDist, int keyPointCnt, int th, Mat ori_img, int count, int height, int width, int WhiteCenter, int &x1, int &y1, int &x2, int &y2, Mat &faceDetect, double &ratex, double &ratey);
 void pointPrint(int x, int y, int color[3], Mat img);
 double** MemAlloc2D(int nHeight, int nWidth, unsigned char nInitVal);
 Mat faceDetected(Mat img, int startX, int startY, int destX, int destY);
